@@ -1,6 +1,9 @@
 #This script takes a local api repository and builds and runs a docker
 #container for testing changes made in the repo
 
+#Clean up in case last run exited prematurely
+rm default Dockerfile
+
 DOCKERFILE="Dockerfile"
 VHOSTFILE="default"
 
@@ -34,7 +37,7 @@ docker build -t livebrm-api-dev .
 
 
 #Clean up build files
-#rm default Dockerfile
+rm default Dockerfile
 
 
 #Kill the previous version of this container
