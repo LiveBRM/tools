@@ -1,56 +1,65 @@
 #This script takes a local api repository and builds and runs a docker
 #container for testing changes made in the repo
 
-DOCKERFILE="Dockerfile"
-VHOSTFILE="default"
+#Updated to use apache because nginx doesn't easily cooperate with CI
+#route rewrites
+
+DOCKERFILE="../Dockerfile"
+APACHECONFIG="../000-default.conf"
 
 #Build the Dockerfile
 
-echo "FROM ubuntu:latest"				> $DOCKERFILE
-echo "RUN apt update -y"				>> $DOCKERFILE
-echo "RUN apt install nginx php-fpm php-mysql -y"	>> $DOCKERFILE
-echo "COPY default /etc/nginx/sites-enabled/default"	>> $DOCKERFILE
-echo "COPY ./api/ /var/www/html/"                       >> $DOCKERFILE
-echo "CMD service php7.2-fpm start && /usr/sbin/nginx -g 'daemon off;'" >> $DOCKERFILE
-#Build the nginx config
+cat > $DOCKERFILE <<- EOM
+FROM ubuntu:latest
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt update -y
+RUN apt install apache2 libapache2-mod-php -qy
+RUN apt install php-pear php-fpm php-dev php-zip php-curl php-xmlrpc php-gd php-mysql php-mbstring php-xml -qy
+RUN a2enmod proxy_fcgi setenvif
+RUN a2enconf php7.2-fpm
+RUN a2enmod rewrite
+COPY 000-default.conf /etc/apache2/sites-available/
+COPY ./api/ /var/www/api
+CMD service php7.2-fpm start && apachectl -DFOREGROUND
+EOM
 
-echo "server {"						> $VHOSTFILE
-echo "listen 80 default_server;"			>> $VHOSTFILE
-echo "root /var/www/html;"				>> $VHOSTFILE
-echo "index index.php index.html;"			>> $VHOSTFILE
-echo "server_name _;"					>> $VHOSTFILE
-echo "location / {"					>> $VHOSTFILE
-echo "try_files \$uri \$uri/ =404;"			>> $VHOSTFILE
-echo "}"						>> $VHOSTFILE
-echo "location ~ \.php$ {"				>> $VHOSTFILE
-echo "include snippets/fastcgi-php.conf;"		>> $VHOSTFILE
-echo "fastcgi_pass unix:/var/run/php/php7.2-fpm.sock;"	>> $VHOSTFILE
-echo "}"						>> $VHOSTFILE
-echo "}"						>> $VHOSTFILE
+#Build the apache config
+
+cat > $APACHECONFIG <<- EOM
+<VirtualHost *:80>
+	<Directory "/var/www/api">
+		Options Indexes FollowSymLinks MultiViews
+		AllowOverride All
+		Order allow,deny
+		allow from all
+		Require all granted
+	</Directory>
+	ServerAdmin justinmarmorato@gmail.com
+	DocumentRoot /var/www/api
+	ErrorLog ${APACHE_LOG_DIR}/error.log
+	CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+EOM
 
 #Build the container
 
-docker build -t livebrm-api-dev .
-
+cd ../
+docker build -t livebrm-api-dev-apache .
 
 #Clean up build files
-rm default Dockerfile
-
+rm Dockerfile 000-default.conf
 
 #Kill the previous version of this container
-docker rm -f livebrm-api-dev
-
+docker rm -f livebrm-api-dev-apache
 
 #Run the newly created container
 
-docker run -itd --name=livebrm-api-dev livebrm-api-dev
-
+docker run -itd --name=livebrm-api-dev-apache livebrm-api-dev-apache
 
 #Return the container internal IP
 
-IP="$(docker inspect livebrm-api-dev | grep "IPAddress" |\
+IP="$(docker inspect livebrm-api-dev-apache | grep "IPAddress" |\
  tail -1 | sed 's/"//g' | sed "s/^[ \t]*//" | sed 's/IPAddress: //g' |\
  sed 's/,//g')"
 
 echo "API IP Address: " "${IP}"
-
