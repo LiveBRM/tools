@@ -1,10 +1,10 @@
-#LiveBRM Dev Tools
+# LiveBRM Dev Tools
 
 Use the deploy-mysql.sh and deploy-api.sh to setup a locally running copy of the LiveBRM API
 
 To quickly setup your own development copy of the LiveBRM API, create a directory for all assets related to the API to reside.  (This can be in the same directory as the front end, e.g.
 
-* LiveBRM/
+* ~/LiveBRM/
   * api/
   * front-end/
   * tools/
