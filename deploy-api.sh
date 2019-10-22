@@ -54,7 +54,7 @@ docker rm -f livebrm-api-dev-apache
 
 #Run the newly created container
 
-docker run -itd --name=livebrm-api-dev-apache livebrm-api-dev-apache
+docker run -itd -p 80:80 --name=livebrm-api-dev-apache livebrm-api-dev-apache
 
 #Return the container internal IP
 
